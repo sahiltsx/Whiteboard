@@ -6,7 +6,6 @@ import { NextRequest ,NextResponse} from "next/server";
 export async function POST(req:NextRequest){
    try {
       const user= await currentUser();
-
       if(!user){
         return NextResponse.json({
             message:"unauthorized access"
@@ -15,7 +14,6 @@ export async function POST(req:NextRequest){
         })
       }
       const email=user.primaryEmailAddress?.emailAddress;
-
       if(!email){
         return NextResponse.json({
             message:"Email not found"
