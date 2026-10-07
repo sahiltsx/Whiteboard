@@ -1,9 +1,14 @@
-import { UserButton } from "@clerk/nextjs";
+import ProjectList from "@/components/Custom/dashboard/ProjectList";
+import WelBanner from "@/components/Custom/dashboard/WelBanner";
 
 export default function Dashboard(){
     return(
-        <div className="m-4">
-            <UserButton/>
+        <div>
+          {/* Welcome Banner */}
+          <WelBanner/>
+
+          {/* empty and project list */}
+          <ProjectList/>
         </div>
     )
 }
