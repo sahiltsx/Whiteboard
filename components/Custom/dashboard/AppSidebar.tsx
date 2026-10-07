@@ -71,7 +71,7 @@ export function AppSidebar() {
         </div>
 
         {isLoaded && user && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 p-4 border rounded-md">
             <Image
               src={user.imageUrl}
               alt="User Logo"
