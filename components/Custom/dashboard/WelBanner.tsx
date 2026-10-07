@@ -13,11 +13,10 @@ function WelBanner() {
             <h2 className='text-2xl font-bold'>Welcome back ,{user?.fullName}</h2>
             <p className='mt-1 text-sm text-muted-foreground'>Bring your ideas to life on infinite canvas</p>
              <div className='mt-5 flex items-center gap-2 '>
-                 <Button>+ Create New Board</Button>
-                 <Button><Sparkles/>AI helper</Button>
+                 <Button className="bg-blue-600 hover:bg-blue-700" size="lg">+ Create New Board</Button>
+                 <Button variant="outline" size="lg"><Sparkles/>AI Helper</Button>
              </div>
         </div>
-       
     </div>
   )
 }
