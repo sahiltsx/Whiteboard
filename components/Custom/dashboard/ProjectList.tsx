@@ -10,8 +10,8 @@ function ProjectList() {
   return (
     <div>
       {projectList.length === 0 ? (
-        <div className="flex flex-col items-center p-9 border rounded-md gap-2 m-5">
-          <Image src="/folder.png" alt="Folder" width={80} height={80} />
+        <div className="flex flex-col items-center p-5 border rounded-md gap-2 m-7">
+          <Image src="/folderpic.png" alt="Folder" width={80} height={80} />
           <h2 className="text-2xl font-bold">No Boards Found</h2>
           <p className="text-muted-foreground">
             Create your first board to start brainstorming, planning!
