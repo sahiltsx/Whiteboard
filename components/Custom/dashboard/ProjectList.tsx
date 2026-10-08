@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
+import NewBoard from "./NewBoard"
 
 function ProjectList() {
   const [projectList, setProjectList] = useState<any[]>([])
@@ -11,12 +12,12 @@ function ProjectList() {
     <div>
       {projectList.length === 0 ? (
         <div className="flex flex-col items-center p-5 border rounded-md gap-2 m-7">
-          <Image src="/folderpic.png" alt="Folder" width={80} height={80} />
+          <Image src="/folderpic.png" alt="Folder" width={90} height={80} />
           <h2 className="text-2xl font-bold">No Boards Found</h2>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Create your first board to start brainstorming, planning!
           </p>
-          <Button variant="outline">Create New Board</Button>
+          <NewBoard/>
         </div>
       ) : (
         <div>{/* Project list */}</div>

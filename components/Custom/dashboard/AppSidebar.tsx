@@ -13,7 +13,7 @@ import { Archive, LayoutGrid, Settings, Sparkles, User } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import Image from "next/image"
 import { useUser } from "@clerk/nextjs"
-
+import NewBoard from "./NewBoard"
 export function AppSidebar() {
   const { user, isLoaded } = useUser()
 
@@ -28,7 +28,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <Button>+ Create New Board</Button>
+          <NewBoard/>
         </SidebarGroup>
 
         <SidebarGroup>
@@ -61,9 +61,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <Button>+ Create New Board</Button>
-
-        <div className="p-4 my-3 border rounded-md">
+        <div className="p-3 my-2 border rounded-md">
           <h2 className="text-sm flex justify-between text-muted-foreground">
             2 files created <span>total</span>
           </h2>
@@ -71,12 +69,12 @@ export function AppSidebar() {
         </div>
 
         {isLoaded && user && (
-          <div className="flex items-center gap-2 p-4 border rounded-md">
+          <div className="flex items-center gap-2 p-3 border rounded-md">
             <Image
               src={user.imageUrl}
               alt="User Logo"
-              width={40}
-              height={40}
+              width={30}
+              height={30}
               className="rounded-full" 
             />
             <span className="text-sm truncate">{user.fullName}</span>
