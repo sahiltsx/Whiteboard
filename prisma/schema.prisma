@@ -14,4 +14,15 @@ model User{
   password      String?
   credits       Int       @default(3)
   createdAt     DateTime  @default(now())
+  boards        Board[]
 }
+
+model Board {
+  id          String   @id @default(cuid())
+  projectId   String   @unique
+  projectName String
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+

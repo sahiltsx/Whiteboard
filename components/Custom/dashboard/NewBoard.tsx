@@ -11,15 +11,22 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { toast } from "@/components/ui/toast"
 import { Plus } from "lucide-react"
 import { useState } from "react"
 
 function NewBoard() {
   const [workspaceName,setWorkspaceName]=useState("")
 
-  // const handleCreateWork=()=>{
-  //   // 
-  // }
+  const handleCreateWorkSpace=()=>{
+    if(workspaceName.trim()=== ""||workspaceName.length>30){
+      toast.add({
+        type:"error",
+        title:"Invalid Workspace Name",
+        description:"Please enter a valid workspace name "
+      })
+    }
+  }
   return (
     <Dialog>
       <DialogTrigger render={<Button/>}>
@@ -48,7 +55,10 @@ function NewBoard() {
           <DialogClose render={<Button variant="outline" />}>
             Cancel
           </DialogClose>
-          <Button>Create</Button>
+          <Button 
+          disabled={workspaceName.length==0}
+          onClick={handleCreateWorkSpace}
+          >Create</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

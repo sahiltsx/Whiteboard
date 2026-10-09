@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import {dark}  from "@clerk/ui/themes"
 import Provider from "./provider";
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/toast";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Provider>
         {children}
         </Provider>
+        <Toaster/>
         </body>
     </html>
       </ClerkProvider>
