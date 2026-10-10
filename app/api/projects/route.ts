@@ -23,28 +23,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Make sure the user exists in our User table, using Clerk's ID
-    await prisma.user.upsert({
-      where: { id: user.id },
+    const dbUser = await prisma.user.upsert({
+      where: { email },
       update: {},
       create: { id: user.id, email },
     });
 
-   const board = await prisma.board.create({
-  data: {
-    projectId,
-    projectName,
-    createdById: user.id,
-  },
-  include: {
-    createdBy: {
-      select: { email: true },
-    },
-  },
-});
+    // Use the id of the row that actually exists in the database.
+    const board = await prisma.board.create({
+      data: {
+        projectId,
+        projectName,
+        createdById: dbUser.id,
+      },
+      include: {
+        createdBy: {
+          select: { email: true },
+        },
+      },
+    });
 
     return NextResponse.json(board, { status: 201 });
-    
   } catch (error) {
     console.log(error);
 
