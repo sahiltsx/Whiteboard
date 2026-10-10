@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "@/components/ui/toast"
 import axios from "axios"
 import { Plus } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 const MAX_NAME_LENGTH = 30
@@ -22,6 +23,8 @@ function NewBoard() {
   const [open, setOpen] = useState(false)
   const [workspaceName, setWorkspaceName] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const[dialog,setDialog]=useState(false)
+  const route=useRouter();
 
   const trimmedName = workspaceName.trim()
   const isValid = trimmedName.length > 0 && trimmedName.length <= MAX_NAME_LENGTH
@@ -51,8 +54,10 @@ function NewBoard() {
         description: `"${trimmedName}" is ready to use.`,
       })
 
-      setWorkspaceName("")
-      setOpen(false)
+      setWorkspaceName("");
+      setOpen(false);
+      setDialog(false);
+      route.push('/workspace/'+projectId);
     } catch (error) {
       toast.add({
         type: "error",
@@ -65,7 +70,7 @@ function NewBoard() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={dialog} onOpenChange={setDialog}>
       <DialogTrigger render={<Button />}>
         <Plus /> Create New Board
       </DialogTrigger>
