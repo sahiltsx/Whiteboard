@@ -2,8 +2,8 @@
 
 import Image from "next/image"
 import { Tabs,TabsList,TabsTrigger } from "@/components/ui/tabs"
-
-
+import { Button } from "@/components/ui/button"
+import { Save, Share } from "lucide-react"
 
 
 export default function WorkspaceHeader({selectedTab}:any) {
@@ -16,7 +16,7 @@ export default function WorkspaceHeader({selectedTab}:any) {
       <div>
         <Tabs 
         defaultValue="Whiteboard" className="w-100"
-        onChange={(value)=>selectedTab(value)}
+        onValueChange={(value)=>selectedTab(value)}
         >
              <TabsList>
                  <TabsTrigger value="Whiteboard">Whiteboard</TabsTrigger>
@@ -24,8 +24,9 @@ export default function WorkspaceHeader({selectedTab}:any) {
              </TabsList>
        </Tabs>
       </div>
-      <div>
-
+      <div className="flex gap-2">
+        <Button className="text-white bg-blue-500 hover:bg-blue-700"><Save/>Save</Button>
+        <Button variant="outline"><Share/>Share</Button>
       </div>
     </div>
   )

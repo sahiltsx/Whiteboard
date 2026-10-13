@@ -7,22 +7,33 @@ datasource db {
   provider = "postgresql"
 }
 
-model User{
-  id            String    @default(cuid()) @id
-  name          String?
-  email         String    @unique
-  password      String?
-  credits       Int       @default(3)
-  createdAt     DateTime  @default(now())
-  boards        Board[]
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String?  @unique
+  name      String?
+  email     String   @unique
+  password  String?
+  credits   Int      @default(3)
+  createdAt DateTime @default(now())
+  boards    Board[]
 }
 
 model Board {
-  id          String   @id @default(cuid())
-  projectId   String   @unique
+  id          String          @id @default(cuid())
+  projectId   String          @unique
   projectName String
   createdById String
-  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  createdBy   User            @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime        @default(now())
+  whiteboard  WhiteboardData?
 }
 
+model WhiteboardData {
+  id        Int      @id @default(autoincrement())
+  projectId String   @unique
+  project   Board    @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
+  elements  Json?    @default("[]")
+  appState  Json?    @default("{}")
+  files     Json?    @default("{}")
+  updatedAt DateTime @updatedAt
+}
