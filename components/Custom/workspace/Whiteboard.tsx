@@ -1,4 +1,3 @@
-
 "use client";
 
 import { toast } from "@/components/ui/toast";
@@ -15,28 +14,18 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
   const saveTime = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestData = useRef<any>(null);
 
-  useEffect(() => {
-    return () => {
-      if (saveTime.current) {
-        clearTimeout(saveTime.current);
-        saveTime.current = null;
-      }
-    };
-  }, [projectId]);
-
   const saveCanvasChanges = async () => {
     const data = latestData.current;
 
     if (!data) return;
 
     try {
-      const response = await axios.post("/api/whiteboard", {
+      await axios.post("/api/whiteboard", {
         projectId,
         elements: data.elements,
         appState: data.appState,
         files: data.files,
       });
-
     } catch (error: any) {
       console.error("Save failed:", {
         status: error.response?.status,
@@ -46,6 +35,16 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
       });
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (saveTime.current) {
+        clearTimeout(saveTime.current);
+        saveTime.current = null;
+        void saveCanvasChanges();
+      }
+    };
+  }, [projectId]);
 
   const handleCanvasChange = (
     elements: readonly any[],
@@ -59,11 +58,12 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
     }
 
     saveTime.current = setTimeout(() => {
+      saveTime.current = null;
       void saveCanvasChanges();
       toast.add({
-        type:"Success",
-        title:"Changes Saved"
-      })
+        type: "Success",
+        title: "Changes Saved",
+      });
     }, 10000);
   };
 

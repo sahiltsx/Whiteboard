@@ -12,19 +12,20 @@ function WorkSpacePage() {
   const params = useParams<{ workspaceId: string }>();
   const projectId = params.workspaceId;
 
-  console.log("Project ID from URL:", projectId);
 
   return (
     <div>
       <WorkspaceHeader
         selectedTab={(value: string) => setActiveTab(value)}
       />
+      <div className={activeTab === "Whiteboard" ? "" : "hidden"}>
+           <Whiteboard projectId={projectId} />
+      </div>
 
-      {activeTab === "Whiteboard" ? (
-        <Whiteboard key={projectId} projectId={projectId} />
-      ) : (
-        <Docs />
-      )}
+      <div className={activeTab === "docs" ? "" : "hidden"}>
+        {/* Docs content */}
+      </div>
+
     </div>
   );
 }
