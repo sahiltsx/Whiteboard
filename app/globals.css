@@ -128,3 +128,7 @@
     @apply font-sans;
   }
 }
+
+.excalidraw .App-menu__left{
+  display: none !important;
+}
