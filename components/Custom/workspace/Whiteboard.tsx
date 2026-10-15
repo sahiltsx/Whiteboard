@@ -3,47 +3,61 @@
 import { Excalidraw } from "@excalidraw/excalidraw";
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
-import { Diamond, Ellipse, Hand, MousePointer2, Square } from "lucide-react";
+import type { ComponentType } from "react";
+import {
+  ArrowRight,
+  Circle,
+  Diamond,
+  Eraser,
+  Hand,
+  Image as ImageIcon,
+  Minus,
+  MousePointer2,
+  Square,
+  Type,
+} from "lucide-react";
 import { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
+
+type ToolType =
+  | "selection"
+  | "hand"
+  | "rectangle"
+  | "diamond"
+  | "ellipse"
+  | "arrow"
+  | "line"
+  | "text"
+  | "eraser"
+  | "image";
 
 interface WhiteboardProps {
   projectId: string;
 }
 
-const tools = [
-  {
-    name: "selection",
-    icon: MousePointer2,
-    color: "text-blue-600",
-  },
-  {
-    name: "hand",
-    icon: Hand,
-    color: "text-cyan-600",
-  },
-  {
-    name: "rectangle",
-    icon: Square,
-    color: "text-blue-500",
-  },
-  {
-    name: "diamond",
-    icon: Diamond,
-    color: "text-blue-500",
-  },
-  {
-    name: "ellipse",
-    icon: Ellipse,
-    color: "text-blue-500",
-  },
+const tools: {
+  name: ToolType;
+  icon: ComponentType<{ size?: number; className?: string }>;
+  color: string;
+}[] = [
+  { name: "selection", icon: MousePointer2, color: "text-blue-900" },
+  { name: "hand", icon: Hand, color: "text-slate-800" },
+  { name: "rectangle", icon: Square, color: "text-indigo-900" },
+  { name: "diamond", icon: Diamond, color: "text-slate-900" },
+  { name: "ellipse", icon: Circle, color: "text-blue-900" },
+  { name: "arrow", icon: ArrowRight, color: "text-zinc-800" },
+  { name: "line", icon: Minus, color: "text-slate-800" },
+  { name: "text", icon: Type, color: "text-indigo-900" },
+  { name: "image", icon: ImageIcon, color: "text-emerald-900" },
+  { name: "eraser", icon: Eraser, color: "text-slate-900" },
 ];
 
 const Whiteboard = ({ projectId }: WhiteboardProps) => {
-  const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
+  const [excalidrawAPI, setExcalidrawAPI] =
+    useState<ExcalidrawImperativeAPI | null>(null);
   const saveTime = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestData = useRef<any>(null);
-  const [activeTool, setActiveTool] = useState<string>("selection");
+  const [activeTool, setActiveTool] = useState<ToolType>("selection");
 
   const saveCanvasChanges = async () => {
     const data = latestData.current;
@@ -88,23 +102,17 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
       clearTimeout(saveTime.current);
     }
 
-    // saveTime.current = setTimeout(() => {
-    //   saveTime.current = null;
-    //   void saveCanvasChanges();
-    //   toast.add({
-    //     type: "Success",
-    //     title: "Changes Saved",
-    //   });
-    // }, 10000);
+    saveTime.current = setTimeout(() => {
+      saveTime.current = null;
+      void saveCanvasChanges();
+    }, 10000);
   };
 
-  const handleChangeTool = (tool: any) => {
+  const handleTool = (name: ToolType) => {
     if (!excalidrawAPI) return;
 
-    setActiveTool(tool);
-    excalidrawAPI.setActiveTool({
-      type: tool,
-    });
+    setActiveTool(name);
+    excalidrawAPI.setActiveTool({ type: name });
   };
 
   return (
@@ -113,22 +121,21 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
         excalidrawAPI={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
         onChange={handleCanvasChange}
       />
-      <div
-        className="absolute left-4 top-1/2 z-50 -translate-y-1/2
-       flex flex-col gap-1 bg-white border p-1.5 rounded-xl shadow-xl"
-      >
+
+      <div className="absolute left-4 top-1/2 z-50 flex -translate-y-1/2 flex-col gap-1 rounded-xl border bg-white p-1.5 shadow-xl">
         {tools.map((tool) => {
           const Icon = tool.icon;
           return (
             <button
               key={tool.name}
               type="button"
-              className={`flex h-10 w-10 rounded-xl items-center justify-center transition hover:bg-primary/10 hover:cursor-pointer ${
-                activeTool === tool.name ? "bg-blue-300/5" : ""
+              title={tool.name}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl transition hover:cursor-pointer hover:bg-primary/10 ${
+                activeTool === tool.name ? "bg-blue-100" : ""
               }`}
-              onClick={() => handleChangeTool(tool.name)}
+              onClick={() => handleTool(tool.name)}
             >
-              <Icon size={19} className={tool.color} />
+              <Icon size={16} className={tool.color} />
             </button>
           );
         })}
