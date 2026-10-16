@@ -1,14 +1,20 @@
-
 "use client";
 
-import { Excalidraw, CaptureUpdateAction } from "@excalidraw/excalidraw";
-import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import dynamic from "next/dynamic";
+import { CaptureUpdateAction } from "@excalidraw/excalidraw";
+import type {
+  AppState,
+  BinaryFiles,
+  ExcalidrawImperativeAPI,
+  ExcalidrawInitialDataState,
+} from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 
-import axios from "axios";
-import { useEffect, useRef, useState } from "react";
-import type { ComponentType } from "react";
+type ExcalidrawElement = any;
 
+import axios from "axios";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ComponentType } from "react";
 import {
   ArrowRight,
   Circle,
@@ -24,6 +30,13 @@ import {
 
 import FloatingToolbar from "./FloatingToolBar";
 
+const Excalidraw = dynamic(
+  () => import("@excalidraw/excalidraw").then((m) => m.Excalidraw),
+  { ssr: false }
+);
+
+const SAVE_DELAY_MS = 3000;
+
 type ToolType =
   | "selection"
   | "hand"
@@ -38,6 +51,13 @@ type ToolType =
 
 interface WhiteboardProps {
   projectId: string;
+}
+
+interface SceneSnapshot {
+  projectId: string;
+  elements: readonly ExcalidrawElement[];
+  appState: AppState;
+  files: BinaryFiles;
 }
 
 const tools: {
@@ -57,240 +77,253 @@ const tools: {
   { name: "eraser", icon: Eraser, color: "text-slate-900" },
 ];
 
+const pickPersistentAppState = (appState: AppState) => ({
+  viewBackgroundColor: appState.viewBackgroundColor,
+  scrollX: appState.scrollX,
+  scrollY: appState.scrollY,
+  zoom: appState.zoom,
+  gridSize: appState.gridSize,
+});
+
+const randomNonce = () => Math.floor(Math.random() * 2 ** 31);
+
+const bump = (el: ExcalidrawElement, patch: Partial<ExcalidrawElement>) =>
+  ({
+    ...el,
+    ...patch,
+    version: el.version + 1,
+    versionNonce: randomNonce(),
+  } as ExcalidrawElement);
+
 const Whiteboard = ({ projectId }: WhiteboardProps) => {
-  const [excalidrawAPI, setExcalidrawAPI] =
-    useState<ExcalidrawImperativeAPI | null>(null);
+  const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
+  const [initialData, setInitialData] = useState<ExcalidrawInitialDataState | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [activeTool, setActiveTool] = useState<ToolType>("selection");
+  const [hasSelection, setHasSelection] = useState(false);
+  const [toolbarPosition, setToolbarPosition] = useState({ left: 0, top: 0 });
 
-  const [activeTool, setActiveTool] =
-    useState<ToolType>("selection");
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestScene = useRef<SceneSnapshot | null>(null);
+  const isDirty = useRef(false);
+  const canSave = useRef(false);
 
-  const [selectedElementIds, setSelectedElementIds] =
-    useState<Record<string, boolean>>({});
-
-  const saveTime = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestData = useRef<any>(null);
-
-  const saveCanvasChanges = async () => {
-    const data = latestData.current;
-    if (!data) return;
-
+  const persist = useCallback(async (scene: SceneSnapshot) => {
     try {
       await axios.post("/api/whiteboard", {
-        projectId,
-        elements: data.elements,
-        appState: data.appState,
-        files: data.files,
+        projectId: scene.projectId,
+        elements: scene.elements,
+        appState: pickPersistentAppState(scene.appState),
+        files: scene.files,
       });
     } catch (error: any) {
       console.error("Save failed:", {
         status: error.response?.status,
         data: error.response?.data,
-        url: error.config?.url,
-        method: error.config?.method,
       });
     }
-  };
+  }, []);
+
+  const flush = useCallback(() => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    if (isDirty.current && latestScene.current) {
+      isDirty.current = false;
+      void persist(latestScene.current);
+    }
+  }, [persist]);
 
   useEffect(() => {
+    let cancelled = false;
+    setIsLoaded(false);
+    setInitialData(null);
+
+    axios
+      .get("/api/whiteboard", { params: { projectId } })
+      .then((res) => {
+        if (cancelled) return;
+        setInitialData(res.data ?? null);
+        canSave.current = true;
+      })
+      .catch((err) => {
+        console.error("Load failed:", err);
+        canSave.current = false;
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoaded(true);
+      });
+
     return () => {
-      if (saveTime.current) {
-        clearTimeout(saveTime.current);
-        saveTime.current = null;
-        void saveCanvasChanges();
-      }
+      cancelled = true;
     };
   }, [projectId]);
 
-  const handleCanvasChange = (
-    elements: readonly any[],
-    appState: any,
-    files: any
-  ) => {
-    setSelectedElementIds(appState.selectedElementIds ?? {});
-    latestData.current = { elements, appState, files };
+  useEffect(() => {
+    const onPageHide = () => flush();
+    window.addEventListener("pagehide", onPageHide);
 
-    if (saveTime.current) {
-      clearTimeout(saveTime.current);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      flush();
+      latestScene.current = null;
+      canSave.current = false;
+    };
+  }, [projectId, flush]);
+
+  const handleChange = (
+    elements: readonly ExcalidrawElement[],
+    appState: AppState,
+    files: BinaryFiles
+  ) => {
+
+    const selectedIds = appState.selectedElementIds ?? {};
+    const selected = elements.filter((el) => selectedIds[el.id] && !el.isDeleted);
+
+    setActiveTool((appState.activeTool?.type as ToolType) ?? "selection");
+    setHasSelection(selected.length > 0);
+
+    if (selected.length > 0) {
+      const minX = Math.min(...selected.map((el) => el.x));
+      const minY = Math.min(...selected.map((el) => el.y));
+      const maxX = Math.max(...selected.map((el) => el.x + el.width));
+
+      const zoom = appState.zoom?.value ?? 1;
+      const scrollX = appState.scrollX ?? 0;
+      const scrollY = appState.scrollY ?? 0;
+
+      const left = ((minX + maxX) / 2 + scrollX) * zoom;
+      const top = Math.max(8, (minY + scrollY) * zoom - 100);
+
+      setToolbarPosition((prev) =>
+        prev.left === left && prev.top === top ? prev : { left, top }
+      );
     }
 
-    saveTime.current = setTimeout(() => {
-      saveTime.current = null;
-      void saveCanvasChanges();
-    }, 10000);
+    if (!canSave.current) return;
+
+    latestScene.current = { projectId, elements, appState, files };
+    isDirty.current = true;
+
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(flush, SAVE_DELAY_MS);
   };
 
-  const hasSelection = Object.values(selectedElementIds).some(Boolean);
-
   const getSelectedIds = (): string[] => {
-    if (!excalidrawAPI) return [];
-
-    const selected =
-      excalidrawAPI.getAppState().selectedElementIds ?? {};
-
+    if (!api) return [];
+    const selected = api.getAppState().selectedElementIds ?? {};
     return Object.keys(selected).filter((id) => selected[id]);
   };
 
-  const handleChangeColor = (color: string) => {
-    if (!excalidrawAPI) return;
+  const updateSelected = (patch: Partial<ExcalidrawElement>) => {
+    if (!api) return;
 
-    const selectedIds = getSelectedIds();
-    if (selectedIds.length === 0) return;
+    const ids = getSelectedIds();
+    if (ids.length === 0) return;
 
-    const elements = excalidrawAPI.getSceneElements();
+    const next = api
+      .getSceneElementsIncludingDeleted()
+      .map((el) => (ids.includes(el.id) && !el.isDeleted ? bump(el, patch) : el));
 
-    const updatedElements = elements.map((element) => {
-      if (!selectedIds.includes(element.id)) return element;
-
-      return {
-        ...element,
-        backgroundColor: color,
-        version: element.version + 1,
-        versionNonce: Math.floor(Math.random() * 2 ** 31),
-      };
-    });
-
-    excalidrawAPI.updateScene({
-      elements: updatedElements,
+    api.updateScene({
+      elements: next,
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
   };
 
-  const handleChangeBorderColor = (color: string) => {
-  if (!excalidrawAPI) return;
+  const handleChangeColor = (color: string) =>
+    updateSelected({ backgroundColor: color });
 
-  const selectedIds = getSelectedIds();
-  if (selectedIds.length === 0) return;
+  const handleChangeBorderColor = (color: string) =>
+    updateSelected({ strokeColor: color });
 
-  const updatedElements = excalidrawAPI
-    .getSceneElements()
-    .map((element) => {
-      if (!selectedIds.includes(element.id)) return element;
-
-      return {
-        ...element,
-        strokeColor: color,
-        version: element.version + 1,
-        versionNonce: Math.floor(Math.random() * 2 ** 31),
-      };
-    });
-
-  excalidrawAPI.updateScene({
-    elements: updatedElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
-};
-
-  const handleChangeOpacity = (opacity: number) => {
-    if (!excalidrawAPI) return;
-
-    const selectedIds = getSelectedIds();
-    if (selectedIds.length === 0) return;
-
-    const elements = excalidrawAPI.getSceneElements();
-
-    const updatedElements = elements.map((element) => {
-      if (!selectedIds.includes(element.id)) return element;
-
-      return {
-        ...element,
-        opacity,
-        version: element.version + 1,
-        versionNonce: Math.floor(Math.random() * 2 ** 31),
-      };
-    });
-
-    excalidrawAPI.updateScene({
-      elements: updatedElements,
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
-  };
+  const handleChangeOpacity = (opacity: number) =>
+    updateSelected({ opacity });
 
   const handleDuplicate = () => {
-    if (!excalidrawAPI) return;
+    if (!api) return;
 
-    const selectedIds = getSelectedIds();
-    if (selectedIds.length === 0) return;
+    const ids = getSelectedIds();
+    if (ids.length === 0) return;
 
-    const elements = excalidrawAPI.getSceneElements();
+    const all = api.getSceneElementsIncludingDeleted();
+    const selected = all.filter((el) => ids.includes(el.id) && !el.isDeleted);
 
-    const selectedElements = elements.filter((element) =>
-      selectedIds.includes(element.id)
+    const groupMap = new Map<string, string>();
+    const remapGroup = (g: string) => {
+      if (!groupMap.has(g)) groupMap.set(g, crypto.randomUUID());
+      return groupMap.get(g)!;
+    };
+
+    const copies = selected.map(
+      (el) =>
+        ({
+          ...el,
+          id: crypto.randomUUID(),
+          x: el.x + 20,
+          y: el.y + 20,
+          groupIds: el.groupIds.map(remapGroup),
+          boundElements: null, 
+          version: 1,
+          versionNonce: randomNonce(),
+          seed: randomNonce(),
+          isDeleted: false,
+        } as ExcalidrawElement)
     );
 
-    const duplicates = selectedElements.map((element) => ({
-      ...element,
-      id: crypto.randomUUID(),
-      x: element.x + 20,
-      y: element.y + 20,
-      version: 1,
-      versionNonce: Math.floor(Math.random() * 2 ** 31),
-      seed: Math.floor(Math.random() * 2 ** 31),
-      isDeleted: false,
-    }));
+    const newSelection = Object.fromEntries(
+      copies.map((c) => [c.id, true])
+    ) as Record<string, true>;
 
-   const newSelection: Record<string, true> = {};
-
-   duplicates.forEach((element) => {
-      newSelection[element.id] = true;
-     });
-
-excalidrawAPI.updateScene({
-  elements: [...elements, ...duplicates],
-  appState: {
-    selectedElementIds: newSelection,
-  },
-  captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-});
+    api.updateScene({
+      elements: [...all, ...copies],
+      appState: { selectedElementIds: newSelection },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
   };
 
   const handleDelete = () => {
-    if (!excalidrawAPI) return;
+    if (!api) return;
 
-    const selectedIds = getSelectedIds();
-    if (selectedIds.length === 0) return;
+    const ids = getSelectedIds();
+    if (ids.length === 0) return;
 
-    const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
+    const next = api
+      .getSceneElementsIncludingDeleted()
+      .map((el) => (ids.includes(el.id) ? bump(el, { isDeleted: true }) : el));
 
-    const updatedElements = elements.map((element) => {
-      if (!selectedIds.includes(element.id)) return element;
-
-      return {
-        ...element,
-        isDeleted: true,
-        version: element.version + 1,
-        versionNonce: Math.floor(Math.random() * 2 ** 31),
-      };
-    });
-
-    excalidrawAPI.updateScene({
-      elements: updatedElements,
-      appState: {
-        selectedElementIds: {},
-      },
+    api.updateScene({
+      elements: next,
+      appState: { selectedElementIds: {} },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
-
-    setSelectedElementIds({});
   };
 
   const handleTool = (name: ToolType) => {
-    if (!excalidrawAPI) return;
-
-    setActiveTool(name);
-    excalidrawAPI.setActiveTool({ type: name });
+    if (!api) return;
+    api.setActiveTool({ type: name });
   };
 
   return (
     <div style={{ height: "90vh" }} className="relative">
-      <Excalidraw
-        excalidrawAPI={(api: ExcalidrawImperativeAPI) =>
-          setExcalidrawAPI(api)
-        }
-        onChange={handleCanvasChange}
-      />
+      {isLoaded && (
+        <Excalidraw
+          key={projectId}
+          initialData={initialData}
+          excalidrawAPI={(a: ExcalidrawImperativeAPI) => setApi(a)}
+          onChange={handleChange}
+        />
+      )}
 
       {hasSelection && (
-       <div className="absolute left-1/2 top-20 z-50 -translate-x-1/2">
+        <div
+          className="absolute z-50 -translate-x-1/2"
+          style={{
+            left: `${toolbarPosition.left}px`,
+            top: `${toolbarPosition.top}px`,
+          }}
+        >
           <FloatingToolbar
             onChangeColor={handleChangeColor}
             onChangeBorderColor={handleChangeBorderColor}
@@ -304,7 +337,6 @@ excalidrawAPI.updateScene({
       <div className="absolute left-4 top-1/2 z-50 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
         {tools.map((tool) => {
           const Icon = tool.icon;
-
           return (
             <button
               key={tool.name}
