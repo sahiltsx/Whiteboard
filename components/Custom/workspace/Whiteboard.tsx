@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
+import FloatingToolbar from "./FloatingToolBar";
 
 type ToolType =
   | "selection"
@@ -53,16 +54,16 @@ const tools: {
 ];
 
 const Whiteboard = ({ projectId }: WhiteboardProps) => {
-  const [excalidrawAPI, setExcalidrawAPI] =
-    useState<ExcalidrawImperativeAPI | null>(null);
+  const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
   const saveTime = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestData = useRef<any>(null);
   const [activeTool, setActiveTool] = useState<ToolType>("selection");
-  const [selectedElementIds,setSelectedElementIds]=useState<Record<string,boolean>>({});
+  const[selectedElementIds,setSelectedElementIds]=useState<Record<string,boolean>>({});
+ 
+  
 
   const saveCanvasChanges = async () => {
     const data = latestData.current;
-
     if (!data) return;
 
     try {
@@ -99,6 +100,7 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
   ) => {
 
     setSelectedElementIds(appState.selectedElementIds ?? {});
+   
 
     latestData.current = { elements, appState, files };
 
@@ -114,6 +116,21 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
 
   const hasSelection=Object.values(selectedElementIds).some(Boolean);
 
+  const handleChangeColor=(color:string)=>{
+     console.log("Color changed",color)
+  }
+
+  const handleChangeOpacity=(opacity:number)=>{
+    console.log("Opacity changed",opacity)
+  }
+
+  const handleDuplicate=()=>{
+    console.log("selected shapes duplicate")
+  }
+
+  const handleDelete=()=>{
+    console.log("selected shapes deleted")
+  }
   const handleTool = (name: ToolType) => {
     if (!excalidrawAPI) return;
 
@@ -128,11 +145,16 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
         onChange={handleCanvasChange}
       />
 
-      {hasSelection && (
-       <div className="absolute right-4 top-4 z-50 rounded-lg border bg-white px-4 py-2 text-sm text-black shadow-xl">
-          Shape selected!
-       </div>
-      )}
+         {hasSelection && (
+      <div className="absolute right-4 top-4 z-50 rounded-lg border bg-white px-4 py-2 text-sm text-black shadow-xl">
+        <FloatingToolbar
+         onChangeColor={handleChangeColor}
+         onChangeOpacity={handleChangeOpacity}
+         onDuplicate={handleDuplicate}
+         onDelete={handleDelete}
+        />
+      </div>
+    )}
 
       <div className="absolute left-4 top-1/2 z-50 flex -translate-y-1/2 flex-col gap-1 rounded-xl border bg-white p-1.5 shadow-xl">
         {tools.map((tool) => {
