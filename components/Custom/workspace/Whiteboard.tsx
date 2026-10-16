@@ -1,9 +1,14 @@
+
 "use client";
 
-import { Excalidraw } from "@excalidraw/excalidraw";
+import { Excalidraw, CaptureUpdateAction } from "@excalidraw/excalidraw";
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import "@excalidraw/excalidraw/index.css";
+
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
+
 import {
   ArrowRight,
   Circle,
@@ -16,8 +21,7 @@ import {
   Square,
   Type,
 } from "lucide-react";
-import { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
-import "@excalidraw/excalidraw/index.css";
+
 import FloatingToolbar from "./FloatingToolBar";
 
 type ToolType =
@@ -54,13 +58,17 @@ const tools: {
 ];
 
 const Whiteboard = ({ projectId }: WhiteboardProps) => {
-  const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
+  const [excalidrawAPI, setExcalidrawAPI] =
+    useState<ExcalidrawImperativeAPI | null>(null);
+
+  const [activeTool, setActiveTool] =
+    useState<ToolType>("selection");
+
+  const [selectedElementIds, setSelectedElementIds] =
+    useState<Record<string, boolean>>({});
+
   const saveTime = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestData = useRef<any>(null);
-  const [activeTool, setActiveTool] = useState<ToolType>("selection");
-  const[selectedElementIds,setSelectedElementIds]=useState<Record<string,boolean>>({});
- 
-  
 
   const saveCanvasChanges = async () => {
     const data = latestData.current;
@@ -98,10 +106,7 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
     appState: any,
     files: any
   ) => {
-
     setSelectedElementIds(appState.selectedElementIds ?? {});
-   
-
     latestData.current = { elements, appState, files };
 
     if (saveTime.current) {
@@ -114,23 +119,160 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
     }, 10000);
   };
 
-  const hasSelection=Object.values(selectedElementIds).some(Boolean);
+  const hasSelection = Object.values(selectedElementIds).some(Boolean);
 
-  const handleChangeColor=(color:string)=>{
-     console.log("Color changed",color)
-  }
+  const getSelectedIds = (): string[] => {
+    if (!excalidrawAPI) return [];
 
-  const handleChangeOpacity=(opacity:number)=>{
-    console.log("Opacity changed",opacity)
-  }
+    const selected =
+      excalidrawAPI.getAppState().selectedElementIds ?? {};
 
-  const handleDuplicate=()=>{
-    console.log("selected shapes duplicate")
-  }
+    return Object.keys(selected).filter((id) => selected[id]);
+  };
 
-  const handleDelete=()=>{
-    console.log("selected shapes deleted")
-  }
+  const handleChangeColor = (color: string) => {
+    if (!excalidrawAPI) return;
+
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) return;
+
+    const elements = excalidrawAPI.getSceneElements();
+
+    const updatedElements = elements.map((element) => {
+      if (!selectedIds.includes(element.id)) return element;
+
+      return {
+        ...element,
+        backgroundColor: color,
+        version: element.version + 1,
+        versionNonce: Math.floor(Math.random() * 2 ** 31),
+      };
+    });
+
+    excalidrawAPI.updateScene({
+      elements: updatedElements,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+  };
+
+  const handleChangeBorderColor = (color: string) => {
+  if (!excalidrawAPI) return;
+
+  const selectedIds = getSelectedIds();
+  if (selectedIds.length === 0) return;
+
+  const updatedElements = excalidrawAPI
+    .getSceneElements()
+    .map((element) => {
+      if (!selectedIds.includes(element.id)) return element;
+
+      return {
+        ...element,
+        strokeColor: color,
+        version: element.version + 1,
+        versionNonce: Math.floor(Math.random() * 2 ** 31),
+      };
+    });
+
+  excalidrawAPI.updateScene({
+    elements: updatedElements,
+    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+  });
+};
+
+  const handleChangeOpacity = (opacity: number) => {
+    if (!excalidrawAPI) return;
+
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) return;
+
+    const elements = excalidrawAPI.getSceneElements();
+
+    const updatedElements = elements.map((element) => {
+      if (!selectedIds.includes(element.id)) return element;
+
+      return {
+        ...element,
+        opacity,
+        version: element.version + 1,
+        versionNonce: Math.floor(Math.random() * 2 ** 31),
+      };
+    });
+
+    excalidrawAPI.updateScene({
+      elements: updatedElements,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+  };
+
+  const handleDuplicate = () => {
+    if (!excalidrawAPI) return;
+
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) return;
+
+    const elements = excalidrawAPI.getSceneElements();
+
+    const selectedElements = elements.filter((element) =>
+      selectedIds.includes(element.id)
+    );
+
+    const duplicates = selectedElements.map((element) => ({
+      ...element,
+      id: crypto.randomUUID(),
+      x: element.x + 20,
+      y: element.y + 20,
+      version: 1,
+      versionNonce: Math.floor(Math.random() * 2 ** 31),
+      seed: Math.floor(Math.random() * 2 ** 31),
+      isDeleted: false,
+    }));
+
+   const newSelection: Record<string, true> = {};
+
+   duplicates.forEach((element) => {
+      newSelection[element.id] = true;
+     });
+
+excalidrawAPI.updateScene({
+  elements: [...elements, ...duplicates],
+  appState: {
+    selectedElementIds: newSelection,
+  },
+  captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+});
+  };
+
+  const handleDelete = () => {
+    if (!excalidrawAPI) return;
+
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) return;
+
+    const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
+
+    const updatedElements = elements.map((element) => {
+      if (!selectedIds.includes(element.id)) return element;
+
+      return {
+        ...element,
+        isDeleted: true,
+        version: element.version + 1,
+        versionNonce: Math.floor(Math.random() * 2 ** 31),
+      };
+    });
+
+    excalidrawAPI.updateScene({
+      elements: updatedElements,
+      appState: {
+        selectedElementIds: {},
+      },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+
+    setSelectedElementIds({});
+  };
+
   const handleTool = (name: ToolType) => {
     if (!excalidrawAPI) return;
 
@@ -141,30 +283,34 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
   return (
     <div style={{ height: "90vh" }} className="relative">
       <Excalidraw
-        excalidrawAPI={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
+        excalidrawAPI={(api: ExcalidrawImperativeAPI) =>
+          setExcalidrawAPI(api)
+        }
         onChange={handleCanvasChange}
       />
 
-         {hasSelection && (
-      <div className="absolute right-4 top-4 z-50 rounded-lg border bg-white px-4 py-2 text-sm text-black shadow-xl">
-        <FloatingToolbar
-         onChangeColor={handleChangeColor}
-         onChangeOpacity={handleChangeOpacity}
-         onDuplicate={handleDuplicate}
-         onDelete={handleDelete}
-        />
-      </div>
-    )}
+      {hasSelection && (
+       <div className="absolute left-1/2 top-20 z-50 -translate-x-1/2">
+          <FloatingToolbar
+            onChangeColor={handleChangeColor}
+            onChangeBorderColor={handleChangeBorderColor}
+            onChangeOpacity={handleChangeOpacity}
+            onDuplicate={handleDuplicate}
+            onDelete={handleDelete}
+          />
+        </div>
+      )}
 
-      <div className="absolute left-4 top-1/2 z-50 flex -translate-y-1/2 flex-col gap-1 rounded-xl border bg-white p-1.5 shadow-xl">
+      <div className="absolute left-4 top-1/2 z-50 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
         {tools.map((tool) => {
           const Icon = tool.icon;
+
           return (
             <button
               key={tool.name}
               type="button"
               title={tool.name}
-              className={`flex h-10 w-10 items-center justify-center rounded-xl transition hover:cursor-pointer hover:bg-primary/10 ${
+              className={`flex h-10 w-10 items-center justify-center rounded-xl transition hover:bg-primary/10 ${
                 activeTool === tool.name ? "bg-blue-100" : ""
               }`}
               onClick={() => handleTool(tool.name)}

@@ -1,53 +1,92 @@
 
 "use client";
 
-import {Copy,Palette,SlidersHorizontal,Trash2} from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 
 interface FloatingToolbarProps {
   onChangeColor: (color: string) => void;
+  onChangeBorderColor: (color: string) => void;
   onChangeOpacity: (opacity: number) => void;
   onDuplicate: () => void;
   onDelete: () => void;
 }
 
-const colors = [
+const backgroundColors = [
+  "#ffffff",
   "#ffc9c9",
   "#ffec99",
   "#b2f2bb",
   "#a5d8ff",
   "#d0bfff",
-  "#ffffff",
+];
+
+const borderColors = [
+  "#1f2937",
+  "#ef4444",
+  "#f97316",
+  "#16a34a",
+  "#2563eb",
+  "#9333ea",
 ];
 
 export default function FloatingToolbar({
   onChangeColor,
+  onChangeBorderColor,
   onChangeOpacity,
   onDuplicate,
   onDelete,
 }: FloatingToolbarProps) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#242424] p-3 text-white shadow-2xl">
-      
-      <div className="flex items-center gap-2">
-        <Palette size={16} className="text-gray-300" />
+    <div className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-800 shadow-xl">
 
-        {colors.map((color) => (
-          <button
-            key={color}
-            type="button"
-            title={`Fill ${color}`}
-            aria-label={`Change fill color to ${color}`}
-            onClick={() => onChangeColor(color)}
-            className="h-5 w-5 rounded-full border border-white/30 transition hover:scale-110"
-            style={{ backgroundColor: color }}
-          />
-        ))}
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-semibold text-slate-500">
+          Fill
+        </span>
+
+        <div className="flex items-center gap-1.5">
+          {backgroundColors.map((color) => (
+            <button
+              key={color}
+              type="button"
+              title={`Background ${color}`}
+              aria-label={`Change background color to ${color}`}
+              onClick={() => onChangeColor(color)}
+              className="h-5 w-5 rounded-full border border-slate-300 transition hover:scale-110"
+              style={{ backgroundColor: color }}
+            />
+          ))}
+        </div>
       </div>
 
-      <div className="h-7 w-px bg-white/20" />
+      <div className="h-10 w-px bg-slate-200" />
 
-      <div className="flex items-center gap-2">
-        <SlidersHorizontal size={16} />
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-semibold text-slate-500">
+          Border
+        </span>
+
+        <div className="flex items-center gap-1.5">
+          {borderColors.map((color) => (
+            <button
+              key={color}
+              type="button"
+              title={`Border ${color}`}
+              aria-label={`Change border color to ${color}`}
+              onClick={() => onChangeBorderColor(color)}
+              className="h-5 w-5 rounded-full border border-slate-300 transition hover:scale-110"
+              style={{ backgroundColor: color }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="h-10 w-px bg-slate-200" />
+
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-semibold text-slate-500">
+          Opacity
+        </span>
 
         <input
           type="range"
@@ -58,30 +97,31 @@ export default function FloatingToolbar({
           onChange={(event) =>
             onChangeOpacity(Number(event.target.value))
           }
-          className="w-20 accent-indigo-400"
+          className="w-24 cursor-pointer accent-indigo-600"
         />
       </div>
 
-      <div className="h-7 w-px bg-white/20" />
+      <div className="h-10 w-px bg-slate-200" />
 
       <button
         type="button"
-        title="Duplicate"
-        aria-label="Duplicate selected shapes"
+        title="Copy selected shape"
+        aria-label="Copy selected shape"
         onClick={onDuplicate}
-        className="rounded-md p-2 hover:bg-white/10"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-600"
       >
-        <Copy size={17} />
+        <Copy size={18} />
       </button>
 
+     
       <button
         type="button"
-        title="Delete"
-        aria-label="Delete selected shapes"
+        title="Delete selected shape"
+        aria-label="Delete selected shape"
         onClick={onDelete}
-        className="rounded-md p-2 text-red-400 hover:bg-red-500/10"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-red-500 transition hover:bg-red-50 hover:text-red-600"
       >
-        <Trash2 size={17} />
+        <Trash2 size={18} />
       </button>
     </div>
   );
