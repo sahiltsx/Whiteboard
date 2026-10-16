@@ -58,6 +58,7 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
   const saveTime = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestData = useRef<any>(null);
   const [activeTool, setActiveTool] = useState<ToolType>("selection");
+  const [selectedElementIds,setSelectedElementIds]=useState<Record<string,boolean>>({});
 
   const saveCanvasChanges = async () => {
     const data = latestData.current;
@@ -96,6 +97,9 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
     appState: any,
     files: any
   ) => {
+
+    setSelectedElementIds(appState.selectedElementIds ?? {});
+
     latestData.current = { elements, appState, files };
 
     if (saveTime.current) {
@@ -107,6 +111,8 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
       void saveCanvasChanges();
     }, 10000);
   };
+
+  const hasSelection=Object.values(selectedElementIds).some(Boolean);
 
   const handleTool = (name: ToolType) => {
     if (!excalidrawAPI) return;
@@ -121,6 +127,12 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
         excalidrawAPI={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
         onChange={handleCanvasChange}
       />
+
+      {hasSelection && (
+       <div className="absolute right-4 top-4 z-50 rounded-lg border bg-white px-4 py-2 text-sm text-black shadow-xl">
+          Shape selected!
+       </div>
+      )}
 
       <div className="absolute left-4 top-1/2 z-50 flex -translate-y-1/2 flex-col gap-1 rounded-xl border bg-white p-1.5 shadow-xl">
         {tools.map((tool) => {
