@@ -42,7 +42,6 @@ function AiFloatingbar() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [prompt, setPrompt] = useState('')
 
-  // Hooks must run before any early return
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsOpen(false)
@@ -56,7 +55,7 @@ function AiFloatingbar() {
   const selectedTool = TOOLS.find((t) => t.id === selectedId)
 
   return (
-    <div className="absolute bottom-24 right-20 z-50 max-h-[90vh] w-[28rem] overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl">
+    <div className="absolute bottom-24 right-20 z-50 max-h-[90vh] w-md overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl">
 
       <div className="flex items-start justify-between">
         <div>
