@@ -24,11 +24,14 @@ import {
   Image as ImageIcon,
   Minus,
   MousePointer2,
+  Sparkles,
   Square,
   Type,
 } from "lucide-react";
 
 import FloatingToolbar from "./FloatingToolBar";
+import AiFloatingbar from "./AiFloatingbar";
+import { Button } from "@/components/ui/button";
 
 const Excalidraw = dynamic(
   () => import("@excalidraw/excalidraw").then((m) => m.Excalidraw),
@@ -102,6 +105,7 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
   const [activeTool, setActiveTool] = useState<ToolType>("selection");
   const [hasSelection, setHasSelection] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ left: 0, top: 0 });
+  const[showSidebar,setShowSidebar]=useState(true);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestScene = useRef<SceneSnapshot | null>(null);
@@ -351,6 +355,12 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
             </button>
           );
         })}
+      </div>
+      <div className="absolute right-10 bottom-3 z-50">
+        <Button size={"lg"} onClick={()=>setShowSidebar(!showSidebar)}>
+          <Sparkles/> AI
+        </Button>
+        {showSidebar && <AiFloatingbar/>}
       </div>
     </div>
   );
