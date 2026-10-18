@@ -48,6 +48,26 @@ function AiFloatingbar({excalidrawAPI}:Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [prompt, setPrompt] = useState('')
 
+
+  const getEmptyCanvas=()=>{
+    if(!excalidrawAPI) {
+      return {x:100,y:100}
+    }
+   const elements=excalidrawAPI.getSceneElements().filter(element=>!element.isDeleted)
+
+   if(elements.length==0){
+    return {x:100,y:100}
+   }
+
+   const maxRight=Math.max(...elements.map((element)=>element.x+element.width));
+   const minTop=Math.max(...elements.map((element)=>element.y));
+
+   return {
+    x:maxRight+150,
+    y:minTop
+   }
+  }
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsOpen(false)
