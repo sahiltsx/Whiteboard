@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { Monitor, PencilRuler, Smartphone, Sparkle, Sparkles, Workflow, X } from 'lucide-react'
+import { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
+
+
+type Props={
+  excalidrawAPI:ExcalidrawImperativeAPI |null
+}
 
 const TOOLS = [
   {
@@ -37,7 +43,7 @@ const TOOLS = [
 const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2'
 
-function AiFloatingbar() {
+function AiFloatingbar({excalidrawAPI}:Props) {
   const [isOpen, setIsOpen] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [prompt, setPrompt] = useState('')

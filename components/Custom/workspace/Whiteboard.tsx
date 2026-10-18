@@ -360,7 +360,7 @@ const Whiteboard = ({ projectId }: WhiteboardProps) => {
         <Button size={"lg"} onClick={()=>setShowSidebar(!showSidebar)}>
           <Sparkles/> AI
         </Button>
-        {showSidebar && <AiFloatingbar/>}
+        {showSidebar && <AiFloatingbar excalidrawAPI={api}/>}
       </div>
     </div>
   );
