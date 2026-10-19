@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Monitor, PencilRuler, Smartphone, Sparkle, Sparkles, Workflow, X } from 'lucide-react'
 import { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
+import { convertToExcalidrawElements } from '@excalidraw/excalidraw'
 
 
 type Props={
@@ -47,7 +48,7 @@ function AiFloatingbar({excalidrawAPI}:Props) {
   const [isOpen, setIsOpen] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [prompt, setPrompt] = useState('')
-
+  const AI_PLACEHOLDER_ID='ai-generation-placeholder';
 
   const getEmptyCanvas=()=>{
     if(!excalidrawAPI) {
@@ -66,6 +67,17 @@ function AiFloatingbar({excalidrawAPI}:Props) {
     x:maxRight+150,
     y:minTop
    }
+  }
+
+  const addAiPLaceholder=()=>{
+    if(!excalidrawAPI) return ;
+
+    const position=getEmptyCanvas();
+
+    const placeholderId=
+    convertToExcalidrawElements([
+      // 
+    ])
   }
 
   useEffect(() => {
