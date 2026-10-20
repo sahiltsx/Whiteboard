@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Monitor, PencilRuler, Smartphone, Sparkle, Sparkles, Workflow, X } from 'lucide-react'
+import { Monitor, PencilRuler, Smartphone, Sparkles, Workflow, X } from 'lucide-react'
 import { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
 import { convertToExcalidrawElements } from '@excalidraw/excalidraw'
 
-
-type Props={
-  excalidrawAPI:ExcalidrawImperativeAPI |null
+type Props = {
+  excalidrawAPI: ExcalidrawImperativeAPI | null
 }
 
 const TOOLS = [
@@ -44,41 +43,122 @@ const TOOLS = [
 const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2'
 
-function AiFloatingbar({excalidrawAPI}:Props) {
+const AI_PLACEHOLDER_ID = 'ai-generation-placeholder'
+
+function AiFloatingbar({ excalidrawAPI }: Props) {
   const [isOpen, setIsOpen] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [prompt, setPrompt] = useState('')
-  const AI_PLACEHOLDER_ID='ai-generation-placeholder';
 
-  const getEmptyCanvas=()=>{
-    if(!excalidrawAPI) {
-      return {x:100,y:100}
+  const getEmptyCanvas = () => {
+    if (!excalidrawAPI) {
+      return { x: 100, y: 100 }
     }
-   const elements=excalidrawAPI.getSceneElements().filter(element=>!element.isDeleted)
 
-   if(elements.length==0){
-    return {x:100,y:100}
-   }
+    const elements = excalidrawAPI
+      .getSceneElements()
+      .filter((element) => !element.isDeleted)
 
-   const maxRight=Math.max(...elements.map((element)=>element.x+element.width));
-   const minTop=Math.max(...elements.map((element)=>element.y));
+    if (elements.length === 0) {
+      return { x: 100, y: 100 }
+    }
 
-   return {
-    x:maxRight+150,
-    y:minTop
-   }
+    const maxRight = Math.max(...elements.map((element) => element.x + element.width))
+    const minTop = Math.min(...elements.map((element) => element.y))
+
+    return {
+      x: maxRight + 150,
+      y: minTop,
+    }
   }
 
-  const addAiPLaceholder=()=>{
-    if(!excalidrawAPI) return ;
+  const addAiPlaceholder = () => {
+    if (!excalidrawAPI) return
 
-    const position=getEmptyCanvas();
+    const position = getEmptyCanvas()
 
-    const placeholderId=
-    convertToExcalidrawElements([
-      // 
-    ])
+   const placeholderElements = convertToExcalidrawElements([
+  {
+    type: 'rectangle',
+    id: AI_PLACEHOLDER_ID,
+    x: position.x,
+    y: position.y,
+    width: 420,
+    height: 260,
+    backgroundColor: '#f5f3ff',
+    strokeColor: '#8b5cf6',
+    fillStyle: 'solid',
+    strokeWidth: 2,
+    roughness: 0,
+    roundness: { type: 3 },
+  },
+  {
+    type: 'text',
+    x: position.x + 28,
+    y: position.y + 28,
+    text: '✨ Generating with AI',
+    fontSize: 22,
+    strokeColor: '#6d28d9',
+    autoResize: true,
+  },
+  {
+    type: 'text',
+    x: position.x + 28,
+    y: position.y + 72,
+    text: 'Preparing your diagram...',
+    fontSize: 16,
+    strokeColor: '#64748b',
+    autoResize: true,
+  },
+  {
+    type: 'rectangle',
+    x: position.x + 28,
+    y: position.y + 130,
+    width: 300,
+    height: 16,
+    backgroundColor: '#ddd6fe',
+    strokeColor: '#ddd6fe',
+    fillStyle: 'solid',
+    roughness: 0,
+    roundness: { type: 3 },
+  },
+  {
+    type: 'rectangle',
+    x: position.x + 28,
+    y: position.y + 160,
+    width: 260,
+    height: 16,
+    backgroundColor: '#ede9fe',
+    strokeColor: '#ede9fe',
+    fillStyle: 'solid',
+    roughness: 0,
+    roundness: { type: 3 },
+  },
+  {
+    type: 'rectangle',
+    x: position.x + 28,
+    y: position.y + 190,
+    width: 180,
+    height: 16,
+    backgroundColor: '#ddd6fe',
+    strokeColor: '#ddd6fe',
+    fillStyle: 'solid',
+    roughness: 0,
+    roundness: { type: 3 },
+  },
+])
+    const currentElements = excalidrawAPI.getSceneElements()
+
+    excalidrawAPI.updateScene({
+      elements: [...currentElements, ...placeholderElements],
+    })
   }
+
+  const onClickGenerate = async () => {
+  await document.fonts.load('22px Excalifont')
+  await document.fonts.ready
+  addAiPlaceholder()
+}
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -174,6 +254,7 @@ function AiFloatingbar({excalidrawAPI}:Props) {
             <button
               type="button"
               disabled={!prompt.trim()}
+              onClick={onClickGenerate}
               className={`flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 ${FOCUS_RING}`}
             >
               <Sparkles size={16} aria-hidden="true" />
