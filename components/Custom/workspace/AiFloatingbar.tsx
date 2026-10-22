@@ -14,28 +14,32 @@ const TOOLS = [
     id: 'diagram',
     title: 'Diagrams',
     description: 'Generate diagrams in seconds',
-    example: 'A diagram showing how a user signs up and verifies email',
+    prompt:
+      'Create a system architecture diagram for a MERN chat app. Show the React client, Express API, MongoDB database, and Socket.IO server, with arrows for how requests and real-time messages flow between them.',
     icon: PencilRuler,
   },
   {
     id: 'flowchart',
     title: 'Flowchart',
     description: 'Turn ideas into visual workflows',
-    example: 'A flowchart for login with email and OTP',
+    prompt:
+      'Create a flowchart for user login with email and OTP. Start at the login page, check whether the email exists, send a six-digit OTP, verify it within five minutes, and handle wrong or expired codes with a retry option.',
     icon: Workflow,
   },
   {
     id: 'web',
     title: 'Web Mockup',
     description: 'Generate website wireframes',
-    example: 'A landing page with a hero section, features, and a signup form',
+    prompt:
+      'Design a landing page for a task management app called TaskFlow. Include a top navigation bar with logo and login button, a hero section with a headline, subtext, and a Get Started button, three feature cards with icons, a pricing section, and a footer with links.',
     icon: Monitor,
   },
   {
     id: 'mobile',
     title: 'Mobile Mockup',
     description: 'Generate mobile app wireframes',
-    example: 'A mobile home screen with a bottom nav and a list of task cards',
+    prompt:
+      "Design a mobile home screen for a task management app. Include a header with the user's name and a notification icon, a list of task cards showing title, due date, and a completion checkbox, a floating add button, and a bottom navigation bar with Home, Calendar, and Profile tabs.",
     icon: Smartphone,
   },
 ]
@@ -43,33 +47,42 @@ const TOOLS = [
 const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2'
 
-const AI_PLACEHOLDER_ID = 'ai-generation-placeholder'
+const AI_PLACEHOLDER_PREFIX = 'ai-placeholder'
 
 function AiFloatingbar({ excalidrawAPI }: Props) {
   const [isOpen, setIsOpen] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [prompt, setPrompt] = useState('')
 
-  const getEmptyCanvas = () => {
-    if (!excalidrawAPI) {
-      return { x: 100, y: 100 }
+
+  const handleToolClick = (tool: (typeof TOOLS)[number]) => {
+
+    const isTemplate = prompt.trim() === '' || TOOLS.some((t) => t.prompt === prompt)
+
+    if (selectedId === tool.id) {
+      setSelectedId(null)
+      if (isTemplate) setPrompt('')
+      return
     }
+
+    setSelectedId(tool.id)
+    if (isTemplate) setPrompt(tool.prompt)
+  }
+
+
+  const getEmptyCanvas = () => {
+    if (!excalidrawAPI) return { x: 100, y: 100 }
 
     const elements = excalidrawAPI
       .getSceneElements()
-      .filter((element) => !element.isDeleted)
+      .filter((el) => !el.isDeleted && !el.id.startsWith(AI_PLACEHOLDER_PREFIX))
 
-    if (elements.length === 0) {
-      return { x: 100, y: 100 }
-    }
+    if (elements.length === 0) return { x: 100, y: 100 }
 
-    const maxRight = Math.max(...elements.map((element) => element.x + element.width))
-    const minTop = Math.min(...elements.map((element) => element.y))
+    const maxRight = Math.max(...elements.map((el) => el.x + el.width))
+    const minTop = Math.min(...elements.map((el) => el.y))
 
-    return {
-      x: maxRight + 150,
-      y: minTop,
-    }
+    return { x: maxRight + 150, y: minTop }
   }
 
   const addAiPlaceholder = () => {
@@ -77,77 +90,85 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
 
     const position = getEmptyCanvas()
 
-   const placeholderElements = convertToExcalidrawElements([
-  {
-    type: 'rectangle',
-    id: AI_PLACEHOLDER_ID,
-    x: position.x,
-    y: position.y,
-    width: 420,
-    height: 260,
-    backgroundColor: '#f5f3ff',
-    strokeColor: '#8b5cf6',
-    fillStyle: 'solid',
-    strokeWidth: 2,
-    roughness: 0,
-    roundness: { type: 3 },
-  },
-  {
-    type: 'text',
-    x: position.x + 28,
-    y: position.y + 28,
-    text: '✨ Generating with AI',
-    fontSize: 22,
-    strokeColor: '#6d28d9',
-    autoResize: true,
-  },
-  {
-    type: 'text',
-    x: position.x + 28,
-    y: position.y + 72,
-    text: 'Preparing your diagram...',
-    fontSize: 16,
-    strokeColor: '#64748b',
-    autoResize: true,
-  },
-  {
-    type: 'rectangle',
-    x: position.x + 28,
-    y: position.y + 130,
-    width: 300,
-    height: 16,
-    backgroundColor: '#ddd6fe',
-    strokeColor: '#ddd6fe',
-    fillStyle: 'solid',
-    roughness: 0,
-    roundness: { type: 3 },
-  },
-  {
-    type: 'rectangle',
-    x: position.x + 28,
-    y: position.y + 160,
-    width: 260,
-    height: 16,
-    backgroundColor: '#ede9fe',
-    strokeColor: '#ede9fe',
-    fillStyle: 'solid',
-    roughness: 0,
-    roundness: { type: 3 },
-  },
-  {
-    type: 'rectangle',
-    x: position.x + 28,
-    y: position.y + 190,
-    width: 180,
-    height: 16,
-    backgroundColor: '#ddd6fe',
-    strokeColor: '#ddd6fe',
-    fillStyle: 'solid',
-    roughness: 0,
-    roundness: { type: 3 },
-  },
-])
-    const currentElements = excalidrawAPI.getSceneElements()
+    const placeholderElements = convertToExcalidrawElements([
+      {
+        type: 'rectangle',
+        id: `${AI_PLACEHOLDER_PREFIX}-box`,
+        x: position.x,
+        y: position.y,
+        width: 420,
+        height: 260,
+        backgroundColor: '#f5f3ff',
+        strokeColor: '#8b5cf6',
+        fillStyle: 'solid',
+        strokeWidth: 2,
+        roughness: 0,
+        roundness: { type: 3 },
+      },
+      {
+        type: 'text',
+        id: `${AI_PLACEHOLDER_PREFIX}-title`,
+        x: position.x + 28,
+        y: position.y + 28,
+        text: '✨ Generating with AI',
+        fontSize: 22,
+        strokeColor: '#6d28d9',
+        autoResize: true,
+      },
+      {
+        type: 'text',
+        id: `${AI_PLACEHOLDER_PREFIX}-subtitle`,
+        x: position.x + 28,
+        y: position.y + 72,
+        text: 'Preparing your diagram...',
+        fontSize: 16,
+        strokeColor: '#64748b',
+        autoResize: true,
+      },
+      {
+        type: 'rectangle',
+        id: `${AI_PLACEHOLDER_PREFIX}-bar-1`,
+        x: position.x + 28,
+        y: position.y + 130,
+        width: 300,
+        height: 16,
+        backgroundColor: '#ddd6fe',
+        strokeColor: '#ddd6fe',
+        fillStyle: 'solid',
+        roughness: 0,
+        roundness: { type: 3 },
+      },
+      {
+        type: 'rectangle',
+        id: `${AI_PLACEHOLDER_PREFIX}-bar-2`,
+        x: position.x + 28,
+        y: position.y + 160,
+        width: 260,
+        height: 16,
+        backgroundColor: '#ede9fe',
+        strokeColor: '#ede9fe',
+        fillStyle: 'solid',
+        roughness: 0,
+        roundness: { type: 3 },
+      },
+      {
+        type: 'rectangle',
+        id: `${AI_PLACEHOLDER_PREFIX}-bar-3`,
+        x: position.x + 28,
+        y: position.y + 190,
+        width: 180,
+        height: 16,
+        backgroundColor: '#ddd6fe',
+        strokeColor: '#ddd6fe',
+        fillStyle: 'solid',
+        roughness: 0,
+        roundness: { type: 3 },
+      },
+    ])
+
+    const currentElements = excalidrawAPI
+      .getSceneElements()
+      .filter((el) => !el.id.startsWith(AI_PLACEHOLDER_PREFIX))
 
     excalidrawAPI.updateScene({
       elements: [...currentElements, ...placeholderElements],
@@ -155,10 +176,11 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
   }
 
   const onClickGenerate = async () => {
-  await document.fonts.load('22px Excalifont')
-  await document.fonts.ready
-  addAiPlaceholder()
-}
+    await document.fonts.load('22px Excalifont')
+    await document.fonts.ready
+    addAiPlaceholder()
+  }
+
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -170,12 +192,9 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
 
   if (!isOpen) return null
 
-  const selectedTool = TOOLS.find((t) => t.id === selectedId)
-
   return (
-    <div className="absolute bottom-24 right-20 z-50 max-h-[90vh] w-md overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl">
-
-      <div className="flex items-start justify-between">
+      <div className="absolute bottom-12 right-4 z-50 max-h-[calc(100vh-8rem)] w-[28rem] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl">
+     <div className="flex items-start justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
             <Sparkles className="text-violet-500" size={18} aria-hidden="true" />
@@ -204,7 +223,7 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
               key={tool.id}
               type="button"
               aria-pressed={isSelected}
-              onClick={() => setSelectedId(isSelected ? null : tool.id)}
+              onClick={() => handleToolClick(tool)}
               className={`flex min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition ${FOCUS_RING} ${
                 isSelected
                   ? 'border-violet-300 bg-violet-50'
@@ -241,13 +260,13 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
         </label>
 
         <div className="flex items-center gap-3">
-          <textarea
-            id="ai-prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={selectedTool ? selectedTool.example : 'Select a tool above to get started'}
-            rows={3}
-            className="w-full resize-none rounded-xl border border-slate-200 p-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+         <textarea
+           id="ai-prompt"
+           value={prompt}
+           onChange={(e) => setPrompt(e.target.value)}
+           placeholder="Select a tool above, or describe what you want to create"
+           rows={6}
+           className="min-h-[9rem] w-full resize-none rounded-xl border border-slate-200 p-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
           />
 
           <div className="flex justify-end">
