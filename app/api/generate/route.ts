@@ -30,16 +30,39 @@ Rules:
 - Do not include coordinates or sizes. The client lays out the shapes.`
 
 const GEMINI_MODEL = 'gemini-3.8-flash'
+const MAX_ATTEMPTS = 3
+
+async function callGemini(apiKey: string, body: string): Promise<Response> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
+  const headers = {
+    'x-goog-api-key': apiKey,
+    'Content-Type': 'application/json',
+  }
+
+  let response: Response | null = null
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    response = await fetch(url, { method: 'POST', headers, body })
+
+    if (response.ok || ![429, 503].includes(response.status)) break
+
+    console.warn(`Gemini busy (${response.status}), attempt ${attempt} of ${MAX_ATTEMPTS}`)
+    if (attempt < MAX_ATTEMPTS) {
+      await new Promise((resolve) => setTimeout(resolve, attempt * 2000))
+    }
+  }
+
+  return response!
+}
 
 export async function POST(req: Request) {
   try {
-
-     const raw = await req.text()
-     
+    const raw = await req.text()
     if (!raw) {
       return NextResponse.json({ error: 'Empty request body' }, { status: 400 })
     }
-    const { prompt, toolType } = await req.json()
+
+    const { prompt, toolType } = JSON.parse(raw)
 
     if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 1000) {
       return NextResponse.json({ error: 'Invalid prompt' }, { status: 400 })
@@ -53,35 +76,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing GEMINI_API_KEY' }, { status: 500 })
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'x-goog-api-key': apiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: `${TOOL_INSTRUCTIONS[toolType]}\n\nRequest: ${prompt}` }],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            maxOutputTokens: 4000,
+    const response = await callGemini(
+      apiKey,
+      JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `${TOOL_INSTRUCTIONS[toolType]}\n\nRequest: ${prompt}` }],
           },
-        }),
-      }
+        ],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          maxOutputTokens: 8000,
+        },
+      })
     )
 
-   if (!response.ok) {
-  const errorBody = await response.text()
-  console.error('Gemini error:', response.status, errorBody)
-  return NextResponse.json({ error: 'AI request failed' }, { status: 502 })
-}
+    if (!response.ok) {
+      const errorBody = await response.text()
+      console.error('Gemini error:', response.status, errorBody)
+      return NextResponse.json({ error: 'AI request failed' }, { status: 502 })
+    }
+
     const data = await response.json()
     const text: string =
       data.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('') ?? ''
@@ -94,8 +111,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(parsed)
-  } catch(error) {
-    console.log("Route error:",error)
+  } catch (err) {
+    console.error('Route error:', err)
     return NextResponse.json({ error: 'Could not generate diagram' }, { status: 500 })
   }
 }
