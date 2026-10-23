@@ -33,6 +33,12 @@ const GEMINI_MODEL = 'gemini-3.8-flash'
 
 export async function POST(req: Request) {
   try {
+
+     const raw = await req.text()
+     
+    if (!raw) {
+      return NextResponse.json({ error: 'Empty request body' }, { status: 400 })
+    }
     const { prompt, toolType } = await req.json()
 
     if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 1000) {
@@ -65,7 +71,7 @@ export async function POST(req: Request) {
           ],
           generationConfig: {
             responseMimeType: 'application/json',
-            maxOutputTokens: 2000,
+            maxOutputTokens: 4000,
           },
         }),
       }
@@ -88,7 +94,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(parsed)
-  } catch {
+  } catch(error) {
+    console.log("Route error:",error)
     return NextResponse.json({ error: 'Could not generate diagram' }, { status: 500 })
   }
 }

@@ -53,6 +53,7 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
   const [isOpen, setIsOpen] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [prompt, setPrompt] = useState('')
+  const [isGenerating,setIsGenerating]=useState(false);
 
 
   const handleToolClick = (tool: (typeof TOOLS)[number]) => {
@@ -176,9 +177,34 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
   }
 
   const onClickGenerate = async () => {
+     
+    if(!excalidrawAPI || !prompt.trim() || !selectedId || isGenerating) return
+
+    setIsGenerating(true)
+
+    try {
     await document.fonts.load('22px Excalifont')
     await document.fonts.ready
     addAiPlaceholder()
+
+    const payload = JSON.stringify({ prompt, toolType: selectedId })
+    console.log('Sending:', payload)
+
+   const res = await fetch('/api/generate',{
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+    }) 
+    const data=await res.json();
+    if(!res.ok){
+      throw new Error(data.error ?? "Request failed")
+    }
+    console.log("AI result: ",data)
+    } catch (error) {
+      console.log(error)
+    }finally{
+      setIsGenerating(false)
+    }
   }
 
 
@@ -272,7 +298,7 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
           <div className="flex justify-end">
             <button
               type="button"
-              disabled={!prompt.trim()}
+              disabled={!prompt.trim() || !selectedId ||isGenerating}
               onClick={onClickGenerate}
               className={`flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 ${FOCUS_RING}`}
             >
