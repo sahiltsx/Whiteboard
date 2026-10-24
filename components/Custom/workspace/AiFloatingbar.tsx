@@ -52,6 +52,7 @@ const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2'
 
 const AI_PLACEHOLDER_PREFIX = 'ai-placeholder'
+const REQUEST_TIMEOUT_MS = 30000
 
 function AiFloatingbar({ excalidrawAPI }: Props) {
   const [isOpen, setIsOpen] = useState(true)
@@ -59,7 +60,6 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
   const [prompt, setPrompt] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
 
   const handleToolClick = (tool: (typeof TOOLS)[number]) => {
     const isTemplate =
@@ -193,7 +193,7 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
   }
 
   const drawAiResult = (result: AiResult) => {
-    if (!excalidrawAPI || result.nodes.length === 0) return
+    if (!excalidrawAPI) return
 
     const origin = getEmptyCanvas()
     const COLS = 3
@@ -252,12 +252,20 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
     excalidrawAPI.scrollToContent(newElements, { fitToContent: true })
   }
 
-
   const onClickGenerate = async () => {
-    if (!excalidrawAPI || !prompt.trim() || !selectedId || isGenerating) return
+    if (!prompt.trim() || !selectedId || isGenerating) return
+
+    if (!excalidrawAPI) {
+      setError('Canvas is still loading. Please wait a moment and try again.')
+      return
+    }
 
     setIsGenerating(true)
     setError(null)
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
     try {
       await document.fonts.load('22px Excalifont')
       await document.fonts.ready
@@ -267,16 +275,42 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, toolType: selectedId }),
+        signal: controller.signal,
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Request failed')
+
+      const raw = await res.text()
+      let data: any = null
+      try {
+        data = raw ? JSON.parse(raw) : null
+      } catch {
+        data = null
+      }
+
+      if (!res.ok) {
+        throw new Error(data?.error ?? `Server error (${res.status})`)
+      }
+
+      if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.arrows)) {
+        throw new Error('Unexpected response from server')
+      }
+
+      if (data.nodes.length === 0) {
+        throw new Error('No diagram was returned')
+      }
 
       drawAiResult(data as AiResult)
     } catch (err) {
       console.error(err)
       removeAiPlaceholders()
-      setError('Could not generate the diagram. Please try again.')
+
+      const isTimeout = err instanceof DOMException && err.name === 'AbortError'
+      setError(
+        isTimeout
+          ? 'Request took too long. Please try again.'
+          : 'Could not generate the diagram. Please try again.'
+      )
     } finally {
+      clearTimeout(timer)
       setIsGenerating(false)
     }
   }

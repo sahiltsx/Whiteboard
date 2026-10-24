@@ -29,8 +29,11 @@ Rules:
 - Use at most 20 nodes.
 - Do not include coordinates or sizes. The client lays out the shapes.`
 
-const GEMINI_MODEL = 'gemini-3.8-flash'
+const GEMINI_MODEL = 'gemini-3.8-flash' 
 const MAX_ATTEMPTS = 3
+const REQUEST_TIMEOUT_MS = 25000 
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function callGemini(apiKey: string, body: string): Promise<Response> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
@@ -42,13 +45,28 @@ async function callGemini(apiKey: string, body: string): Promise<Response> {
   let response: Response | null = null
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    response = await fetch(url, { method: 'POST', headers, body })
+    console.log(`Gemini attempt ${attempt} of ${MAX_ATTEMPTS}`)
+
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      })
+    } catch (err) {
+      // Timeout ya network error
+      console.error(`Gemini request failed on attempt ${attempt}:`, err)
+      if (attempt === MAX_ATTEMPTS) throw err
+      await sleep(attempt * 2000)
+      continue
+    }
 
     if (response.ok || ![429, 503].includes(response.status)) break
 
     console.warn(`Gemini busy (${response.status}), attempt ${attempt} of ${MAX_ATTEMPTS}`)
     if (attempt < MAX_ATTEMPTS) {
-      await new Promise((resolve) => setTimeout(resolve, attempt * 2000))
+      await sleep(attempt * 2000)
     }
   }
 
@@ -56,6 +74,8 @@ async function callGemini(apiKey: string, body: string): Promise<Response> {
 }
 
 export async function POST(req: Request) {
+  console.log('Generate route hit')
+
   try {
     const raw = await req.text()
     if (!raw) {
@@ -76,6 +96,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing GEMINI_API_KEY' }, { status: 500 })
     }
 
+    console.log('Calling Gemini for toolType:', toolType)
+
     const response = await callGemini(
       apiKey,
       JSON.stringify({
@@ -92,6 +114,8 @@ export async function POST(req: Request) {
         },
       })
     )
+
+    console.log('Gemini responded with status:', response.status)
 
     if (!response.ok) {
       const errorBody = await response.text()
