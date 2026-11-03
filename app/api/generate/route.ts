@@ -31,7 +31,7 @@ Rules:
 
 const GEMINI_MODEL = 'gemini-3.8-flash' 
 const MAX_ATTEMPTS = 3
-const REQUEST_TIMEOUT_MS = 25000 
+const REQUEST_TIMEOUT_MS = 60000 
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -55,10 +55,10 @@ async function callGemini(apiKey: string, body: string): Promise<Response> {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
     } catch (err) {
-      // Timeout ya network error
+
       console.error(`Gemini request failed on attempt ${attempt}:`, err)
       if (attempt === MAX_ATTEMPTS) throw err
-      await sleep(attempt * 2000)
+      await sleep(attempt * 3000)
       continue
     }
 
@@ -69,7 +69,6 @@ async function callGemini(apiKey: string, body: string): Promise<Response> {
       await sleep(attempt * 2000)
     }
   }
-
   return response!
 }
 
@@ -77,18 +76,27 @@ export async function POST(req: Request) {
   console.log('Generate route hit')
 
   try {
-    const raw = await req.text()
-    if (!raw) {
-      return NextResponse.json({ error: 'Empty request body' }, { status: 400 })
+    const { prompt, toolType } = await req.json()
+
+    if (
+      typeof prompt !== 'string' ||
+      !prompt.trim() ||
+      prompt.length > 1000
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid prompt' },
+        { status: 400 }
+      )
     }
 
-    const { prompt, toolType } = JSON.parse(raw)
-
-    if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 1000) {
-      return NextResponse.json({ error: 'Invalid prompt' }, { status: 400 })
-    }
-    if (typeof toolType !== 'string' || !(toolType in TOOL_INSTRUCTIONS)) {
-      return NextResponse.json({ error: 'Invalid tool type' }, { status: 400 })
+    if (
+      typeof toolType !== 'string' ||
+      !(toolType in TOOL_INSTRUCTIONS)
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid tool type' },
+        { status: 400 }
+      )
     }
 
     const apiKey = process.env.GEMINI_API_KEY
@@ -115,13 +123,23 @@ export async function POST(req: Request) {
       })
     )
 
-    console.log('Gemini responded with status:', response.status)
+ console.log('Gemini responded with status:', response.status)
 
-    if (!response.ok) {
-      const errorBody = await response.text()
-      console.error('Gemini error:', response.status, errorBody)
-      return NextResponse.json({ error: 'AI request failed' }, { status: 502 })
-    }
+if (!response.ok) {
+  const errorBody = await response.text()
+
+  console.error('Gemini API error:', response.status, errorBody)
+
+  return NextResponse.json(
+    {
+      error:
+        response.status === 503 || response.status === 429
+          ? 'The AI model is temporarily busy. Please try again shortly.'
+          : `Gemini API request failed (${response.status}).`,
+    },
+    { status: 502 }
+  )
+}
 
     const data = await response.json()
     const text: string =
@@ -135,8 +153,17 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(parsed)
-  } catch (err) {
-    console.error('Route error:', err)
-    return NextResponse.json({ error: 'Could not generate diagram' }, { status: 500 })
-  }
+  }  catch (err) {
+  console.error('Generate route error:', err)
+
+  return NextResponse.json(
+    {
+      error:
+        err instanceof Error
+          ? err.message
+          : 'Unknown server error',
+    },
+    { status: 500 }
+  )
+}
 }

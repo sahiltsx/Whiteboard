@@ -52,7 +52,7 @@ const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2'
 
 const AI_PLACEHOLDER_PREFIX = 'ai-placeholder'
-const REQUEST_TIMEOUT_MS = 30000
+const REQUEST_TIMEOUT_MS = 70000
 
 function AiFloatingbar({ excalidrawAPI }: Props) {
   const [isOpen, setIsOpen] = useState(true)
@@ -75,12 +75,10 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
     if (isTemplate) setPrompt(tool.prompt)
   }
 
-  // ---------- Canvas helpers ----------
 
   const getEmptyCanvas = () => {
     if (!excalidrawAPI) return { x: 100, y: 100 }
 
-    // Ignore the placeholder so it doesn't push new content further right
     const elements = excalidrawAPI
       .getSceneElements()
       .filter((el) => !el.isDeleted && !el.id.startsWith(AI_PLACEHOLDER_PREFIX))
@@ -272,23 +270,35 @@ function AiFloatingbar({ excalidrawAPI }: Props) {
       addAiPlaceholder()
 
       const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, toolType: selectedId }),
-        signal: controller.signal,
-      })
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    prompt,
+    toolType: selectedId,
+  }),
+  signal: controller.signal,
+})
 
-      const raw = await res.text()
-      let data: any = null
-      try {
-        data = raw ? JSON.parse(raw) : null
-      } catch {
-        data = null
-      }
+const raw = await res.text()
 
-      if (!res.ok) {
-        throw new Error(data?.error ?? `Server error (${res.status})`)
-      }
+console.log('Generate API status:', res.status)
+console.log('Generate API raw response:', raw)
+
+let data: any
+
+try {
+  data = JSON.parse(raw)
+} catch {
+  throw new Error(`Invalid API response: ${raw}`)
+}
+
+if (!res.ok) {
+  throw new Error(
+    data?.error ?? `Server error (${res.status})`
+  )
+}
 
       if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.arrows)) {
         throw new Error('Unexpected response from server')
